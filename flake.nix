@@ -25,10 +25,7 @@
             pkgs.libiconv
           ];
           nativeBuildInputs = with pkgs; [
-            just
             rustToolchain
-            cargo-watch
-            rust-analyzer
           ] ++ (
             lib.optionals stdenv.isDarwin [
               pkgs.darwin.apple_sdk.frameworks.Security
@@ -40,6 +37,11 @@
               pkgs.darwin.apple_sdk.frameworks.Cocoa
             ]
           );
+          devShellNativeBuildInputs = with pkgs; [
+            just
+            cargo-watch
+            rust-analyzer
+          ] ++ nativeBuildInputs;
         in
         {
           _module.args.pkgs = import self.inputs.nixpkgs {
@@ -54,7 +56,13 @@
             cargoLock.lockFile = ./Cargo.lock;
             inherit buildInputs nativeBuildInputs;
           };
-
+          packages.docker = pkgs.dockerTools.buildLayeredImage {
+            name = cargoToml.package.name;
+            tag = cargoToml.package.version;
+            config = {
+              Cmd = [ "${self'.packages.default}/bin/${cargoToml.package.name}" ];
+            };
+          };
           # Rust dev environment
           devShells.default = pkgs.mkShell {
             inputsFrom = [
@@ -70,7 +78,8 @@
             '';
             RUST_BACKTRACE = 1;
 
-            inherit buildInputs nativeBuildInputs;
+            inherit buildInputs;
+            nativeBuildInputs = devShellNativeBuildInputs;
           };
 
           # Add your auto-formatters here.
