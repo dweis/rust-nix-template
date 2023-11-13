@@ -57,7 +57,17 @@
               rustToolchain
               cargo-watch
               rust-analyzer
-            ];
+            ] ++ (
+              lib.optionals stdenv.isDarwin [
+                pkgs.darwin.apple_sdk.frameworks.Security
+                pkgs.darwin.apple_sdk.frameworks.CoreServices
+                pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+                pkgs.darwin.apple_sdk.frameworks.Foundation
+                pkgs.darwin.apple_sdk.frameworks.AppKit
+                pkgs.darwin.apple_sdk.frameworks.WebKit
+                pkgs.darwin.apple_sdk.frameworks.Cocoa
+              ]
+            );
             RUST_BACKTRACE = 1;
           };
 
