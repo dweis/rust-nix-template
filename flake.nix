@@ -20,10 +20,26 @@
       perSystem = { config, self', pkgs, lib, system, rust-overlay, ... }:
         let
           cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-          nonRustDeps = [
+          rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./toolchain.toml;
+          buildInputs = [
             pkgs.libiconv
           ];
-          rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./toolchain.toml;
+          nativeBuildInputs = with pkgs; [
+            just
+            rustToolchain
+            cargo-watch
+            rust-analyzer
+          ] ++ (
+            lib.optionals stdenv.isDarwin [
+              pkgs.darwin.apple_sdk.frameworks.Security
+              pkgs.darwin.apple_sdk.frameworks.CoreServices
+              pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+              pkgs.darwin.apple_sdk.frameworks.Foundation
+              pkgs.darwin.apple_sdk.frameworks.AppKit
+              pkgs.darwin.apple_sdk.frameworks.WebKit
+              pkgs.darwin.apple_sdk.frameworks.Cocoa
+            ]
+          );
         in
         {
           _module.args.pkgs = import self.inputs.nixpkgs {
@@ -36,6 +52,7 @@
             inherit (cargoToml.package) name version;
             src = ./.;
             cargoLock.lockFile = ./Cargo.lock;
+            inherit buildInputs nativeBuildInputs;
           };
 
           # Rust dev environment
@@ -51,24 +68,9 @@
               echo "🦀 Run 'just <recipe>' to get started 🦀"
               just
             '';
-            buildInputs = nonRustDeps;
-            nativeBuildInputs = with pkgs; [
-              just
-              rustToolchain
-              cargo-watch
-              rust-analyzer
-            ] ++ (
-              lib.optionals stdenv.isDarwin [
-                pkgs.darwin.apple_sdk.frameworks.Security
-                pkgs.darwin.apple_sdk.frameworks.CoreServices
-                pkgs.darwin.apple_sdk.frameworks.CoreFoundation
-                pkgs.darwin.apple_sdk.frameworks.Foundation
-                pkgs.darwin.apple_sdk.frameworks.AppKit
-                pkgs.darwin.apple_sdk.frameworks.WebKit
-                pkgs.darwin.apple_sdk.frameworks.Cocoa
-              ]
-            );
             RUST_BACKTRACE = 1;
+
+            inherit buildInputs nativeBuildInputs;
           };
 
           # Add your auto-formatters here.
