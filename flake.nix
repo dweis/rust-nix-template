@@ -9,9 +9,6 @@
   };
 
   outputs = { self, flake-parts, rust-overlay, ... }@ inputs:
-    let
-      name = "rust-nix-template";
-    in
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
       systems = import inputs.systems;
       imports = [
@@ -37,13 +34,9 @@
               pkgs.darwin.apple_sdk.frameworks.Cocoa
             ]
           );
-          devShellNativeBuildInputs = with pkgs; [
-            just
-            cargo-watch
-            rust-analyzer
-          ] ++ nativeBuildInputs;
         in
         {
+          # Apply Rust overlay
           _module.args.pkgs = import self.inputs.nixpkgs {
             inherit system;
             overlays = [ (import self.inputs.rust-overlay) ];
@@ -56,6 +49,8 @@
             cargoLock.lockFile = ./Cargo.lock;
             inherit buildInputs nativeBuildInputs;
           };
+
+          # Docker image
           packages.docker = pkgs.dockerTools.buildLayeredImage {
             name = cargoToml.package.name;
             tag = cargoToml.package.version;
@@ -63,23 +58,29 @@
               Cmd = [ "${self'.packages.default}/bin/${cargoToml.package.name}" ];
             };
           };
+
           # Rust dev environment
           devShells.default = pkgs.mkShell {
             inputsFrom = [
               config.treefmt.build.devShell
             ];
             shellHook = ''
-              # For rust-analyzer 'hover' tooltips to work.
-              export RUST_SRC_PATH=${pkgs.rustPlatform.rustLibSrc}
-
               echo
               echo "🦀 Run 'just <recipe>' to get started 🦀"
               just
             '';
+
+            # Enable backtrace
             RUST_BACKTRACE = 1;
+            # For rust-analyzer 'hover' tooltips to work.
+            RUST_SRC_PATH = rustToolchain + /lib/rustlib/src/rust/library;
 
             inherit buildInputs;
-            nativeBuildInputs = devShellNativeBuildInputs;
+            nativeBuildInputs = nativeBuildInputs ++ (with pkgs; [
+              just
+              cargo-watch
+              rust-analyzer
+            ]);
           };
 
           # Add your auto-formatters here.
